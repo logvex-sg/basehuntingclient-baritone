@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "basehunting",
+  "version": "${version}",
+  "name": "Base Hunting Client",
+  "description": "Baritone-powered base hunting for anarchy servers. Elytra autopilot, new chunk detection, stash finding, login/logout tracking and fully configurable Discord webhook notifications.",
+  "authors": [
+    "logvex-sg"
+  ],
+  "contact": {
+    "sources": "https://github.com/logvex-sg/basehuntingclient-baritone"
+  },
+  "icon": "assets/basehunting/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "dev.basehunt.bhclient.BaseHuntingAddon"
+    ]
+  },
+  "custom": {
+    "meteor-client:color": "0,200,255",
+    "modmenu": {
+      "parent": {
+        "id": "meteor-client"
+      }
+    }
+  },
+  "depends": {
+    "java": ">=${jdk_version}",
+    "minecraft": "${minecraft_version}",
+    "fabricloader": ">=${loader_version}",
+    "meteor-client": "*"
+  },
+  "recommends": {
+    "baritone-meteor": "*"
+  }
+}
