@@ -2,6 +2,7 @@ package dev.basehunt.bhclient.commands;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import dev.basehunt.bhclient.modules.BaseHunter;
+import dev.basehunt.bhclient.modules.BaseHunterV2;
 import dev.basehunt.bhclient.modules.NewChunks;
 import dev.basehunt.bhclient.modules.PlayerLogger;
 import dev.basehunt.bhclient.modules.StashFinder;
@@ -9,6 +10,7 @@ import dev.basehunt.bhclient.modules.WebhookNotifier;
 import dev.basehunt.bhclient.systems.PlayerTracker;
 import dev.basehunt.bhclient.systems.StashManager;
 import dev.basehunt.bhclient.utils.BaritoneHelper;
+import dev.basehunt.bhclient.utils.ElytraManager;
 import dev.basehunt.bhclient.utils.ServerUtils;
 import meteordevelopment.meteorclient.commands.Command;
 import meteordevelopment.meteorclient.systems.modules.Modules;
@@ -47,6 +49,43 @@ public class BaseHuntCommand extends Command {
                     })
                 )
             )
+        );
+
+        builder.then(literal("v2")
+            .executes(context -> {
+                v2Status();
+                return SINGLE_SUCCESS;
+            })
+            .then(literal("start").executes(context -> {
+                BaseHunterV2 hunter = Modules.get().get(BaseHunterV2.class);
+                if (hunter == null) {
+                    error("Base Hunter V2 is unavailable.");
+                    return SINGLE_SUCCESS;
+                }
+
+                if (!hunter.isActive()) hunter.enable();
+                hunter.start();
+                return SINGLE_SUCCESS;
+            }))
+            .then(literal("stop").executes(context -> {
+                BaseHunterV2 hunter = Modules.get().get(BaseHunterV2.class);
+                if (hunter != null) hunter.stop();
+                return SINGLE_SUCCESS;
+            }))
+            .then(literal("refresh").executes(context -> {
+                BaseHunterV2 hunter = Modules.get().get(BaseHunterV2.class);
+                if (hunter != null) hunter.refreshTargets();
+                return SINGLE_SUCCESS;
+            }))
+            .then(literal("elytra").executes(context -> {
+                info("Elytra: %s", ElytraManager.status());
+
+                if (!ElytraManager.hasElytraEquipped() && ElytraManager.equipBest()) {
+                    info("Equipped a spare elytra.");
+                }
+
+                return SINGLE_SUCCESS;
+            }))
         );
 
         builder.then(literal("stop").executes(context -> {
@@ -210,6 +249,45 @@ public class BaseHuntCommand extends Command {
                 hunter.isPaused() ? "paused" : "flying",
                 destination == null ? "none" : destination.toShortString(),
                 (long) hunter.getTravelledBlocks());
+        }
+
+        BaseHunterV2 v2 = Modules.get().get(BaseHunterV2.class);
+        if (v2 != null && v2.isActive()) {
+            info("V2: %s, %d queued, flown %,d blocks",
+                v2.isPaused() ? "paused" : (v2.isStarted() ? "flying" : "idle"),
+                v2.getQueuedCount(),
+                (long) v2.getTravelledBlocks());
+        }
+    }
+
+    private void v2Status() {
+        BaseHunterV2 hunter = Modules.get().get(BaseHunterV2.class);
+        if (hunter == null) {
+            error("Base Hunter V2 is unavailable.");
+            return;
+        }
+
+        info("Base Hunter V2 - firework free elytra sweep");
+        info("Enabled: %s, started: %s, paused: %s",
+            hunter.isActive() ? "yes" : "no",
+            hunter.isStarted() ? "yes" : "no",
+            hunter.isPaused() ? "yes" : "no");
+
+        info("Elytra: %s", ElytraManager.status());
+
+        var target = hunter.getCurrentTarget();
+        info("Current target: %s", target == null
+            ? "none"
+            : "%d, %d (%s)".formatted(target.x(), target.z(), target.reason()));
+
+        info("Queued targets: %d", hunter.getQueuedCount());
+        info("Targets visited: %d, elytra swaps: %d", hunter.getTargetsVisited(), hunter.getElytraSwaps());
+        info("Flown this run: %,d blocks", (long) hunter.getTravelledBlocks());
+        info("Baritone: %s", BaritoneHelper.AVAILABLE ? "available (optional, not used for flight)" : "not installed");
+
+        NewChunks newChunks = Modules.get().get(NewChunks.class);
+        if (newChunks != null) {
+            info("New chunks detected: %d", newChunks.getTrackedCount());
         }
     }
 }
