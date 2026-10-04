@@ -10,6 +10,10 @@ Built for Minecraft 1.21.11 (Fabric).
 
 - **Base Hunter** — elytra autopilot. Grid, spiral, compass-heading, waypoint and coordinate routes,
   with firework accounting, optional pause near players and auto-disconnect on arrival.
+- **Base Hunter V2** — firework-free elytra autopilot. Flies itself by recasting the elytra, so a trip
+  is limited only by elytra durability, not by rockets. Ranks new-chunk detections, flies them in a
+  nearest-neighbour tour, follows terrain altitude and pushes a frontier outward when nothing new is
+  found. Any durability of elytra works; spares are swapped in automatically.
 - **New Chunks** — scores chunks on inhabited time, missing light data and flowing liquids to find
   terrain nobody has ever visited. Newly generated chunks are where player activity starts.
 - **Stash Finder** — counts storage blocks, spawners and shulker boxes as chunks stream in, scores
@@ -40,6 +44,11 @@ All commands are under `/basehunt` (alias `/bh`).
 | --- | --- |
 | `/basehunt` or `/basehunt status` | Server, dimension, position, Baritone availability, chunk and stash counts |
 | `/basehunt fly <x> <z>` | Enable Base Hunter and start a route toward those coordinates |
+| `/basehunt v2` | Elytra status and Base Hunter V2 progress |
+| `/basehunt v2 start` | Enable Base Hunter V2 and begin hunting |
+| `/basehunt v2 stop` | Stop Base Hunter V2 |
+| `/basehunt v2 refresh` | Rebuild the target queue from current new-chunk detections |
+| `/basehunt v2 elytra` | Report elytra status, equipping a spare if none is worn |
 | `/basehunt stop` | Stop the autopilot, or cancel Baritone pathing if it was not running |
 | `/basehunt waypoint add` | Add your current position as a route waypoint |
 | `/basehunt waypoint add-at <x> <z>` | Add a specific position as a waypoint |
@@ -77,6 +86,7 @@ All under the **Base Hunting** category in Meteor's module list.
 | Module | Default | Purpose |
 | --- | --- | --- |
 | `base-hunter` | off | Baritone-powered elytra autopilot |
+| `base-hunter-v2` | off | Firework-free elytra autopilot; adaptive targets, any elytra durability |
 | `new-chunks` | off | Detects chunks generated after world creation |
 | `stash-finder` | off | Counts storage containers to find stashes |
 | `player-logger` | off | Records player positions and logout spots |
@@ -95,6 +105,14 @@ settings are worth understanding:
   the centre, `Heading` flies a single compass bearing, `Waypoints` visits a list, `Coordinates`
   goes to one point. Straight-line flight misses almost everything, which is why the sweeps exist.
 - **Base Hunter → fireworks-to-keep** — lands and stops when you run low. Set `0` to disable.
+- **Base Hunter V2 → elytra-replace-durability** — swaps in your best spare elytra when the worn one
+  drops to this much durability. `0` disables. This is what makes any durability of elytra usable.
+- **Base Hunter V2 → cruise-y / terrain-follow / clearance** — preferred altitude, whether to raise it
+  over higher ground, and how much clearance to keep. Terrain-following probes the ground ahead.
+- **Base Hunter V2 → cluster-radius / interest-radius** — how close new chunks must be to count as one
+  target, and how near a known stash or logout spot earns a target a priority bonus.
+- **Base Hunter V2 → frontier-after-seconds / frontier-step** — how long to hunt without finding
+  anything before pushing a waypoint outward, and how far out to push. `0` disables the push.
 - **New Chunks → min-confidence** — how many of the three signals must agree before a chunk is
   reported. Raise it if you get false positives.
 - **New Chunks → min-distance-from-spawn** — ignores chunks near spawn, where everything looks new.
@@ -121,9 +139,14 @@ src/main/java/dev/basehunt/bhclient/
 ├── BaseHuntingAddon.java        addon entrypoint, registers everything
 ├── commands/BaseHuntCommand.java
 ├── hud/BaseHuntingHud.java
-├── modules/                     the six user-facing modules
+├── modules/                     the seven user-facing modules
 ├── systems/                     StashManager, PlayerTracker (saved state)
-└── utils/                       BaritoneHelper, WebhookManager, ServerUtils
+└── utils/                       BaritoneHelper, ElytraController, ElytraManager, FlightPlanner,
+                                 WebhookManager, ServerUtils
+
+src/test/java/dev/basehunt/bhclient/
+├── PlannerTest.java             FlightPlanner maths, no display needed
+└── ApiContractTest.java         asserts the Meteor/Minecraft members the addon drives still exist
 ```
 
 ## License

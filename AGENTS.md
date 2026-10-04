@@ -1,7 +1,8 @@
 # AGENTS.md
 
-Meteor Client addon for Minecraft 1.21.11 (Fabric) providing an anarchy base-hunting toolkit built on
-Baritone's elytra pathfinder.
+Meteor Client addon for Minecraft 1.21.11 (Fabric) providing an anarchy base-hunting toolkit. V1
+(`BaseHunter`) plans with Baritone's elytra pathfinder; V2 (`BaseHunterV2`) flies itself by driving
+Meteor's ElytraFly in Bounce mode, so it needs no fireworks and is limited only by elytra durability.
 
 ## Build
 
@@ -10,8 +11,15 @@ JDK 21 required. The Gradle wrapper is the only entry point.
 ```bash
 ./gradlew build          # jar -> build/libs/basehunting-1.0.0.jar
 ./gradlew compileJava    # fast syntax/type check
+./gradlew verifyAddon    # headless planner + Meteor API contract tests (no display needed)
 ./gradlew runClient      # dev client with Meteor + addon loaded
 ```
+
+`verifyAddon` is the fast pre-flight check. It runs `plannerTest` (FlightPlanner maths over packed
+chunk keys) and `apiContractTest` (asserts the Meteor/Minecraft members the addon drives still
+exist, reading them out of the dependency jars). Both are plain `main` classes rather than JUnit, so
+`tasks.named<Test>("test") { failOnNoDiscoveredTests = false }` keeps the default test task from
+failing the build. `verifyAddon` is wired into `check`, so `./gradlew build` runs it too.
 
 `./gradlew runClient` needs a display. In a headless container install Xvfb and use software GL:
 
@@ -51,9 +59,11 @@ src/main/java/dev/basehunt/bhclient/
 ├── BaseHuntingAddon.java        MeteorAddon entrypoint; registers systems, modules, commands, HUD
 ├── commands/BaseHuntCommand.java  /basehunt (alias /bh)
 ├── hud/BaseHuntingHud.java
-├── modules/                     BaseHunter, NewChunks, StashFinder, PlayerLogger, AutoLog, WebhookNotifier
+├── modules/                     BaseHunter (v1), BaseHunterV2, NewChunks, StashFinder,
+│                                PlayerLogger, AutoLog, WebhookNotifier
 ├── systems/                     StashManager, PlayerTracker — persisted per-server state
-└── utils/                       BaritoneHelper, WebhookManager, ServerUtils, WebhookSettings
+└── utils/                       BaritoneHelper, ElytraController, ElytraManager, FlightPlanner,
+                                 WebhookManager, ServerUtils, WebhookSettings
 ```
 
 ## Conventions and gotchas
@@ -79,6 +89,28 @@ passes `prefix()` as `content` alongside the embed. Preserve that when adding ne
 **Meteor settings** are declared with builders in each module; group them with `settings.createGroup`
 and use `.visible(...)` to hide options that do not apply. Settings are the config UI — there is no
 separate config file to update.
+
+**Base Hunter V2 drives Meteor's ElytraFly, and Bounce mode overwrites rotation every tick.** It is
+not a pathfinder; it holds `forward` and recasts the elytra, which is what removes the firework
+requirement. Two consequences, both verified against the Meteor jar and both guarded by
+`apiContractTest`:
+
+- Bounce writes pitch from `ElytraFly.pitch` whenever `lockPitch` is on. `lockPitch` **defaults to
+  true**, so `ElytraController.enable` must set it to false or `steerTo`'s altitude control is
+  silently discarded.
+- Bounce writes yaw from `ElytraFly.yawLockMode`. `yawLockMode` must stay `Smart` so Bounce passes
+  the yaw `steerTo` wrote through unchanged; `Simple` rounds it to 45 degrees and `None` pins a fixed
+  bearing, both of which break waypoint steering.
+
+`ElytraManager` owns elytra replacement, so `ElytraFly.replace` is set to false — two owners racing to
+swap the same chest slot is worse than one. Meteor's own replacement also stops working once the
+chest slot holds a non-elytra item, whereas `ElytraManager.equipBest` re-equips from the inventory
+after a mid-air break.
+
+**Inventory slot indices are not all main inventory.** `PlayerInventory.size()` returns 43 and
+`getStack(i)` maps indices 36..42 onto the armour/offhand slots, so index 38 is the *chest* slot.
+Scanning `0..size()` for spares therefore counts the elytra you are wearing and can select the chest
+slot as the replacement source. Always bound such scans with `PlayerInventory.MAIN_SIZE` (36).
 
 **Saved state** uses `StashManager`/`PlayerTracker` with NBT serialisation, keyed per server address.
 

@@ -450,6 +450,19 @@ public class NewChunks extends Module {
         return newChunks.size();
     }
 
+    /**
+     * Chunks currently classified as newly generated, as packed {@link net.minecraft.util.math.ChunkPos}
+     * longs. Read by BaseHunterV2 to aim its sweep at fresh terrain instead of flying blind.
+     */
+    public java.util.Set<Long> getNewChunks() {
+        return java.util.Collections.unmodifiableSet(newChunks);
+    }
+
+    /** When a tracked chunk was first seen, in epoch millis. Empty when the chunk is not tracked. */
+    public long foundAt(long chunkKey) {
+        return foundAt.getOrDefault(chunkKey, 0L);
+    }
+
     public int getOldChunkCount() {
         return oldChunks.size();
     }

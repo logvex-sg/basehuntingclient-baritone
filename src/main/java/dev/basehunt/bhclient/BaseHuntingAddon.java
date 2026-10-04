@@ -5,6 +5,7 @@ import dev.basehunt.bhclient.commands.BaseHuntCommand;
 import dev.basehunt.bhclient.hud.BaseHuntingHud;
 import dev.basehunt.bhclient.modules.AutoLog;
 import dev.basehunt.bhclient.modules.BaseHunter;
+import dev.basehunt.bhclient.modules.BaseHunterV2;
 import dev.basehunt.bhclient.modules.NewChunks;
 import dev.basehunt.bhclient.modules.PlayerLogger;
 import dev.basehunt.bhclient.modules.StashFinder;
@@ -36,6 +37,7 @@ public class BaseHuntingAddon extends MeteorAddon {
         Systems.add(new PlayerTracker());
 
         Modules.get().add(new BaseHunter());
+        Modules.get().add(new BaseHunterV2());
         Modules.get().add(new NewChunks());
         Modules.get().add(new StashFinder());
         Modules.get().add(new WebhookNotifier());
